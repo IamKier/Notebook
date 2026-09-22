@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./index.css";
+
 import Journal from "./pages/Journal";
 import Homework from "./pages/Homework";
 import Subjects from "./pages/Subjects";
@@ -12,6 +13,27 @@ type Page =
 
 function App() {
   const [page, setPage] = useState<Page>("home");
+
+  const today = new Date();
+
+  const formattedDate = today.toLocaleDateString(
+    undefined,
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+
+  const hour = today.getHours();
+
+  const greeting =
+    hour < 12
+      ? "Good morning!"
+      : hour < 18
+        ? "Good afternoon!"
+        : "Good evening!";
 
   const renderPage = () => {
     switch (page) {
@@ -27,116 +49,226 @@ function App() {
       case "home":
       default:
         return (
-          <main className="content">
-            <section className="welcome">
-              <p>
-                {new Date().toLocaleDateString(
-                  undefined,
-                  {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  }
-                )}
+          <main className="content home-page">
+            {/* =========================
+                WELCOME
+            ========================= */}
+
+            <section className="home-welcome">
+              <p className="home-date">
+                {formattedDate}
               </p>
 
-              <h2>Good afternoon!</h2>
+              <h2>{greeting}</h2>
+
+              <p className="home-subtitle">
+                Ready to get things done today?
+              </p>
             </section>
 
-            {/* JOURNAL */}
+            {/* =========================
+                QUICK STATS
+            ========================= */}
 
-            <section className="card journal-card">
-              <div className="card-header">
-                <div>
-                  <span className="icon">📝</span>
-                  <h3>Today's Journal</h3>
-                </div>
-              </div>
-
-              <p className="muted">
-                What happened today?
-              </p>
-
+            <section className="quick-stats">
               <button
-                className="primary-button"
+                className="stat-card"
                 onClick={() =>
-                  setPage("journal")
+                  setPage("homework")
                 }
               >
-                + Write today's journal
+                <span className="stat-icon">
+                  📚
+                </span>
+
+                <span className="stat-info">
+                  <strong>Homework</strong>
+                  <small>View assignments</small>
+                </span>
+
+                <span className="stat-arrow">
+                  →
+                </span>
+              </button>
+
+              <button
+                className="stat-card"
+                onClick={() =>
+                  setPage("subjects")
+                }
+              >
+                <span className="stat-icon">
+                  📖
+                </span>
+
+                <span className="stat-info">
+                  <strong>Subjects</strong>
+                  <small>View your subjects</small>
+                </span>
+
+                <span className="stat-arrow">
+                  →
+                </span>
               </button>
             </section>
 
-            {/* HOMEWORK */}
+            {/* =========================
+                JOURNAL
+            ========================= */}
 
-            <section>
+            <section className="home-section">
               <div className="section-title">
-                <h2>Homework</h2>
+                <div>
+                  <h2>Today's Journal</h2>
+
+                  <p className="muted">
+                    Take a moment to write about
+                    your day.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() =>
+                    setPage("journal")
+                  }
+                >
+                  View
+                </button>
+              </div>
+
+              <div className="card home-journal-card">
+                <div className="home-card-icon">
+                  📝
+                </div>
+
+                <div className="home-card-content">
+                  <h3>How was your day?</h3>
+
+                  <p className="muted">
+                    Write down what happened,
+                    what you learned, or anything
+                    you want to remember.
+                  </p>
+
+                  <button
+                    className="primary-button"
+                    onClick={() =>
+                      setPage("journal")
+                    }
+                  >
+                    + Write Today's Journal
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* =========================
+                HOMEWORK
+            ========================= */}
+
+            <section className="home-section">
+              <div className="section-title">
+                <div>
+                  <h2>Homework</h2>
+
+                  <p className="muted">
+                    Keep track of your assignments.
+                  </p>
+                </div>
 
                 <button
                   onClick={() =>
                     setPage("homework")
                   }
                 >
-                  + Add
+                  View All
                 </button>
               </div>
 
-              <div className="homework-list">
-                <div className="homework-item">
-                  <input type="checkbox" />
-
-                  <div>
-                    <strong>
-                      Mathematics assignment
-                    </strong>
-
-                    <span>
-                      Due tomorrow
-                    </span>
-                  </div>
+              <div className="card home-empty-card">
+                <div className="home-empty-icon">
+                  📚
                 </div>
 
-                <div className="homework-item">
-                  <input type="checkbox" />
+                <h3>No homework shown here yet</h3>
 
-                  <div>
-                    <strong>
-                      Programming project
-                    </strong>
+                <p className="muted">
+                  Add an assignment to keep track
+                  of your upcoming school work.
+                </p>
 
-                    <span>
-                      Due Friday
-                    </span>
-                  </div>
-                </div>
+                <button
+                  className="primary-button"
+                  onClick={() =>
+                    setPage("homework")
+                  }
+                >
+                  + Add Homework
+                </button>
               </div>
             </section>
 
-            {/* SUBJECTS */}
+            {/* =========================
+                SUBJECTS
+            ========================= */}
 
-            <section>
+            <section className="home-section">
               <div className="section-title">
-                <h2>Subjects</h2>
+                <div>
+                  <h2>Subjects</h2>
+
+                  <p className="muted">
+                    Organize your classes and topics.
+                  </p>
+                </div>
 
                 <button
                   onClick={() =>
                     setPage("subjects")
                   }
                 >
-                  + Add
+                  View All
                 </button>
               </div>
 
-              <div className="subjects">
+              <div className="card home-empty-card">
+                <div className="home-empty-icon">
+                  📖
+                </div>
+
+                <h3>Manage your subjects</h3>
+
+                <p className="muted">
+                  Create subjects and organize
+                  your notes into topics.
+                </p>
+
                 <button
+                  className="primary-button"
                   onClick={() =>
                     setPage("subjects")
                   }
                 >
-                  📖 Subjects
+                  + Manage Subjects
                 </button>
+              </div>
+            </section>
+
+            {/* =========================
+                MOTIVATION
+            ========================= */}
+
+            <section className="home-tip">
+              <span>💡</span>
+
+              <div>
+                <strong>Small progress counts.</strong>
+
+                <p>
+                  Keep your journal updated,
+                  finish your homework, and stay
+                  organized one day at a time.
+                </p>
               </div>
             </section>
           </main>
@@ -149,11 +281,17 @@ function App() {
       <header className="header">
         <div>
           <h1>📓 Notebook</h1>
-          <p>Your personal school notebook</p>
+
+          <p>
+            Your personal school notebook
+          </p>
         </div>
 
         {page === "home" && (
-          <button className="menu-button">
+          <button
+            className="menu-button"
+            aria-label="Menu"
+          >
             ☰
           </button>
         )}
@@ -207,3 +345,4 @@ function App() {
 }
 
 export default App;
+
