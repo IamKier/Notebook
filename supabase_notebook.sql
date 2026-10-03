@@ -62,6 +62,9 @@ alter table public.topics
 alter table public.homework
 	add column if not exists child_id uuid references public.children(id) on delete cascade;
 
+alter table public.homework
+	add column if not exists subject text not null default '';
+
 -- Older versions used user_id. The app now scopes records through child_id.
 do $$
 declare
