@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 type HomeworkItem = {
   id: string;
@@ -21,52 +22,55 @@ type HomeworkProps = {
   childId: string;
 };
 
-const STORAGE_KEY = "notebook-homework";
-const SUBJECTS_STORAGE_KEY = "notebook-subjects";
-
 function Homework({ childId }: HomeworkProps) {
   // =========================
   // HOMEWORK
   // =========================
 
-  const [homework, setHomework] = useState<HomeworkItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (!saved) {
-      return [];
-    }
-
-    try {
-      return JSON.parse(saved) as HomeworkItem[];
-    } catch {
-      return [];
-    }
-  });
+  const [homework, setHomework] = useState<HomeworkItem[]>([]);
+  const [error, setError] = useState("");
 
   // =========================
   // SUBJECTS
   // =========================
 
-  const [subjects] = useState<Subject[]>(() => {
-    const saved = localStorage.getItem(
-      SUBJECTS_STORAGE_KEY
-    );
+  const [subjects, setSubjects] = useState<Subject[]>([]);
 
-    if (!saved) {
-      return [];
-    }
+  useEffect(() => {
+    const loadData = async () => {
+      if (!supabase || !childId) {
+        setHomework([]);
+        setSubjects([]);
+        return;
+      }
 
-    try {
-      const parsed = JSON.parse(saved);
+      const [{ data: homeworkData, error: homeworkError }, { data: subjectData, error: subjectError }] = await Promise.all([
+        supabase.from("homework").select("id, subject, title, description, due_date, priority, completed, proof_image, completed_at").eq("child_id", childId).order("due_date"),
+        supabase.from("subjects").select("id, name").eq("child_id", childId).order("created_at"),
+      ]);
 
-      return parsed.map((subject: Subject) => ({
-        id: subject.id,
-        name: subject.name,
-      }));
-    } catch {
-      return [];
-    }
-  });
+      if (homeworkError || subjectError) {
+        setError(homeworkError?.message ?? subjectError?.message ?? "Unable to load homework.");
+        return;
+      }
+
+      setError("");
+      setHomework((homeworkData ?? []).map((item) => ({
+        id: item.id,
+        subject: item.subject,
+        title: item.title,
+        description: item.description,
+        dueDate: item.due_date,
+        priority: item.priority as HomeworkItem["priority"],
+        completed: item.completed,
+        proofImage: item.proof_image ?? undefined,
+        completedAt: item.completed_at ?? undefined,
+      })));
+      setSubjects(subjectData ?? []);
+    };
+
+    void loadData();
+  }, [childId]);
 
   // =========================
   // ADD HOMEWORK FORM
@@ -98,7 +102,7 @@ function Homework({ childId }: HomeworkProps) {
   // SAVE HOMEWORK
   // =========================
 
-  const saveHomework = () => {
+  const saveHomework = async () => {
     if (!subject || !title.trim() || !dueDate) {
       alert(
         "Please select a subject, enter a title, and choose a due date."
@@ -107,27 +111,31 @@ function Homework({ childId }: HomeworkProps) {
       return;
     }
 
-    const newHomework: HomeworkItem = {
-      id: crypto.randomUUID(),
+    if (!supabase || !childId) return;
+
+    const { data, error: saveError } = await supabase.from("homework").insert({
+      child_id: childId,
       subject,
       title: title.trim(),
       description: description.trim(),
-      dueDate,
+      due_date: dueDate,
       priority,
-      completed: false,
-    };
+    }).select("id, subject, title, description, due_date, priority, completed, proof_image, completed_at").single();
 
-    const updatedHomework = [
-      newHomework,
-      ...homework,
-    ];
+    if (saveError) {
+      setError(saveError.message);
+      return;
+    }
 
-    setHomework(updatedHomework);
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedHomework)
-    );
+    setHomework((current) => [{
+      id: data.id,
+      subject: data.subject,
+      title: data.title,
+      description: data.description,
+      dueDate: data.due_date,
+      priority: data.priority as HomeworkItem["priority"],
+      completed: data.completed,
+    }, ...current]);
 
     resetForm();
   };
@@ -206,7 +214,7 @@ function Homework({ childId }: HomeworkProps) {
   // SUBMIT PROOF
   // =========================
 
-  const submitProof = () => {
+  const submitProof = async () => {
     if (!proofHomeworkId) {
       return;
     }
@@ -219,25 +227,22 @@ function Homework({ childId }: HomeworkProps) {
       return;
     }
 
-    const updatedHomework = homework.map(
-      (item) =>
-        item.id === proofHomeworkId
-          ? {
-              ...item,
-              completed: true,
-              proofImage,
-              completedAt:
-                new Date().toISOString(),
-            }
-          : item
-    );
+    if (!supabase) return;
+    const completedAt = new Date().toISOString();
+    const { error: proofError } = await supabase.from("homework").update({
+      completed: true,
+      proof_image: proofImage,
+      completed_at: completedAt,
+    }).eq("id", proofHomeworkId);
 
-    setHomework(updatedHomework);
+    if (proofError) {
+      setError(proofError.message);
+      return;
+    }
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedHomework)
-    );
+    setHomework((current) => current.map((item) => item.id === proofHomeworkId
+      ? { ...item, completed: true, proofImage, completedAt }
+      : item));
 
     cancelProofSubmission();
   };
@@ -246,17 +251,14 @@ function Homework({ childId }: HomeworkProps) {
   // DELETE HOMEWORK
   // =========================
 
-  const deleteHomework = (id: string) => {
-    const updatedHomework = homework.filter(
-      (item) => item.id !== id
-    );
-
-    setHomework(updatedHomework);
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedHomework)
-    );
+  const deleteHomework = async (id: string) => {
+    if (!supabase) return;
+    const { error: deleteError } = await supabase.from("homework").delete().eq("id", id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setHomework((current) => current.filter((item) => item.id !== id));
 
     if (proofHomeworkId === id) {
       cancelProofSubmission();
@@ -320,6 +322,7 @@ function Homework({ childId }: HomeworkProps) {
 
   return (
     <main className="content" data-child-id={childId}>
+      {error && <p className="auth-error">{error}</p>}
       {/* =========================
           HEADER
           ========================= */}

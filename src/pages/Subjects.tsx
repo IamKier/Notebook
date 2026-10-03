@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 type Topic = {
   id: string;
@@ -17,22 +19,55 @@ type SubjectsProps = {
   childId: string;
 };
 
-const STORAGE_KEY = "notebook-subjects";
-
 function Subjects({ childId }: SubjectsProps) {
-  const [subjects, setSubjects] = useState<Subject[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [error, setError] = useState("");
 
-    if (!saved) {
-      return [];
+  const loadSubjects = async () => {
+    if (!supabase || !childId) {
+      setSubjects([]);
+      return;
     }
 
-    try {
-      return JSON.parse(saved) as Subject[];
-    } catch {
-      return [];
+    const { data, error: loadError } = await supabase
+      .from("subjects")
+      .select("id, name, description, topics(id, name, notes)")
+      .eq("child_id", childId)
+      .order("created_at");
+
+    if (loadError) {
+      setError(loadError.message);
+      return;
     }
-  });
+
+    setError("");
+    setSubjects((data ?? []) as Subject[]);
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase || !childId) {
+        setSubjects([]);
+        return;
+      }
+
+      const { data, error: loadError } = await supabase
+        .from("subjects")
+        .select("id, name, description, topics(id, name, notes)")
+        .eq("child_id", childId)
+        .order("created_at");
+
+      if (loadError) {
+        setError(loadError.message);
+        return;
+      }
+
+      setError("");
+      setSubjects((data ?? []) as Subject[]);
+    };
+
+    void load();
+  }, [childId]);
 
   const [selectedSubjectId, setSelectedSubjectId] =
     useState<string | null>(null);
@@ -58,37 +93,33 @@ function Subjects({ childId }: SubjectsProps) {
   // SUBJECT FUNCTIONS
   // =========================
 
-  const saveSubject = () => {
+  const saveSubject = async () => {
     if (!subjectName.trim()) {
       alert("Please enter a subject name.");
       return;
     }
 
-    const newSubject: Subject = {
-      id: crypto.randomUUID(),
+    if (!supabase || !childId) return;
+
+    const { error: saveError } = await supabase.from("subjects").insert({
+      child_id: childId,
       name: subjectName.trim(),
       description: subjectDescription.trim(),
-      topics: [],
-    };
+    });
 
-    const updatedSubjects = [
-      ...subjects,
-      newSubject,
-    ];
+    if (saveError) {
+      setError(saveError.message);
+      return;
+    }
 
-    setSubjects(updatedSubjects);
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedSubjects)
-    );
+    await loadSubjects();
 
     setSubjectName("");
     setSubjectDescription("");
     setShowSubjectForm(false);
   };
 
-  const deleteSubject = (id: string) => {
+  const deleteSubject = async (id: string) => {
     const confirmed = window.confirm(
       "Delete this subject and all of its topics?"
     );
@@ -97,16 +128,19 @@ function Subjects({ childId }: SubjectsProps) {
       return;
     }
 
-    const updatedSubjects = subjects.filter(
-      (subject) => subject.id !== id
-    );
+    if (!supabase) return;
 
-    setSubjects(updatedSubjects);
+    const { error: deleteError } = await supabase
+      .from("subjects")
+      .delete()
+      .eq("id", id);
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedSubjects)
-    );
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    await loadSubjects();
 
     if (selectedSubjectId === id) {
       setSelectedSubjectId(null);
@@ -117,7 +151,7 @@ function Subjects({ childId }: SubjectsProps) {
   // TOPIC FUNCTIONS
   // =========================
 
-  const saveTopic = () => {
+  const saveTopic = async () => {
     if (!selectedSubjectId) {
       return;
     }
@@ -127,55 +161,44 @@ function Subjects({ childId }: SubjectsProps) {
       return;
     }
 
-    const newTopic: Topic = {
-      id: crypto.randomUUID(),
+    if (!supabase) return;
+
+    const { error: saveError } = await supabase.from("topics").insert({
+      subject_id: selectedSubjectId,
       name: topicName.trim(),
       notes: topicNotes.trim(),
-    };
+    });
 
-    const updatedSubjects = subjects.map((subject) =>
-      subject.id === selectedSubjectId
-        ? {
-            ...subject,
-            topics: [...subject.topics, newTopic],
-          }
-        : subject
-    );
+    if (saveError) {
+      setError(saveError.message);
+      return;
+    }
 
-    setSubjects(updatedSubjects);
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedSubjects)
-    );
+    await loadSubjects();
 
     setTopicName("");
     setTopicNotes("");
     setShowTopicForm(false);
   };
 
-  const deleteTopic = (topicId: string) => {
+  const deleteTopic = async (topicId: string) => {
     if (!selectedSubjectId) {
       return;
     }
 
-    const updatedSubjects = subjects.map((subject) =>
-      subject.id === selectedSubjectId
-        ? {
-            ...subject,
-            topics: subject.topics.filter(
-              (topic) => topic.id !== topicId
-            ),
-          }
-        : subject
-    );
+    if (!supabase) return;
 
-    setSubjects(updatedSubjects);
+    const { error: deleteError } = await supabase
+      .from("topics")
+      .delete()
+      .eq("id", topicId);
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedSubjects)
-    );
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    await loadSubjects();
   };
 
   // =========================
@@ -185,6 +208,7 @@ function Subjects({ childId }: SubjectsProps) {
   if (selectedSubject) {
     return (
       <main className="content" data-child-id={childId}>
+        {error && <p className="auth-error">{error}</p>}
         <button
           className="back-button"
           onClick={() => {
@@ -362,6 +386,7 @@ function Subjects({ childId }: SubjectsProps) {
 
   return (
     <main className="content" data-child-id={childId}>
+      {error && <p className="auth-error">{error}</p>}
       <div className="section-title">
         <div>
           <h2>📖 Subjects</h2>
