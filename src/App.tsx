@@ -12,15 +12,37 @@ type Page =
   | "homework"
   | "subjects";
 
+type Child = {
+  id: string;
+  name: string;
+};
+
 function App() {
   const [session, setSession] = useState<Awaited<ReturnType<NonNullable<typeof supabase>["auth"]["getSession"]>>["data"]["session"]>(null);
   const [authLoading, setAuthLoading] = useState(Boolean(supabase));
   const [authError, setAuthError] = useState(supabaseConfigError ?? "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"parent" | "child">("child");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [children, setChildren] = useState<Child[]>([]);
+  const [childName, setChildName] = useState("");
+  const [selectedChildId, setSelectedChildId] = useState("");
+  const [childError, setChildError] = useState("");
   const [page, setPage] = useState<Page>("home");
+
+  const loadChildren = async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from("children")
+      .select("id, name")
+      .order("created_at");
+    if (error) {
+      setChildError(error.message);
+      return;
+    }
+    setChildren(data ?? []);
+    setSelectedChildId(data?.[0]?.id ?? "");
+  };
 
   useEffect(() => {
     if (!supabase) {
@@ -29,6 +51,7 @@ function App() {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthLoading(false);
+      if (data.session) loadChildren();
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
@@ -36,6 +59,19 @@ function App() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  const addChild = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase || !childName.trim()) return;
+    const { error } = await supabase.from("children").insert({ name: childName.trim() });
+    if (error) {
+      setChildError(error.message);
+      return;
+    }
+    setChildName("");
+    setChildError("");
+    await loadChildren();
+  };
 
   const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,7 +81,7 @@ function App() {
       return;
     }
     const result = isSignUp
-      ? await supabase.auth.signUp({ email, password, options: { data: { role } } })
+      ? await supabase.auth.signUp({ email, password, options: { data: { role: "parent" } } })
       : await supabase.auth.signInWithPassword({ email, password });
     if (result.error) {
       setAuthError(result.error.message);
@@ -62,18 +98,13 @@ function App() {
         <section className="auth-card">
           <p className="auth-kicker">Notebook</p>
           <h1>{isSignUp ? "Create your account" : "Welcome back"}</h1>
-          <p className="muted">Sign in as a parent or child.</p>
+          <p className="muted">Parent account required. You will add your child after signing in.</p>
           {supabaseConfigError && <p className="auth-error" role="alert">{supabaseConfigError}</p>}
           <form onSubmit={handleAuth}>
             <label htmlFor="auth-email">Email</label>
             <input id="auth-email" className="text-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
             <label htmlFor="auth-password">Password</label>
             <input id="auth-password" className="text-input" type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required />
-            <label htmlFor="auth-role">Account type</label>
-            <select id="auth-role" className="text-input" value={role} onChange={(event) => setRole(event.target.value as "parent" | "child")}>
-              <option value="child">Child</option>
-              <option value="parent">Parent</option>
-            </select>
             {authError && <p className="auth-error" role="alert">{authError}</p>}
             <button className="primary-button" type="submit">{isSignUp ? "Create account" : "Sign in"}</button>
           </form>
@@ -135,6 +166,28 @@ function App() {
               <p className="home-subtitle">
                 Ready to get things done today?
               </p>
+            </section>
+
+            <section className="card family-card">
+              <div className="section-title">
+                <div>
+                  <h2>Children</h2>
+                  <p className="muted">Choose whose notebook is open.</p>
+                </div>
+                {selectedChildId && <strong>{children.find((child) => child.id === selectedChildId)?.name}</strong>}
+              </div>
+              <div className="child-picker">
+                {children.map((child) => (
+                  <button key={child.id} className={child.id === selectedChildId ? "child-button selected" : "child-button"} onClick={() => setSelectedChildId(child.id)}>
+                    {child.name}
+                  </button>
+                ))}
+              </div>
+              <form className="child-form" onSubmit={addChild}>
+                <input className="text-input" value={childName} onChange={(event) => setChildName(event.target.value)} placeholder="Child's name" required />
+                <button className="primary-button" type="submit">Add child</button>
+              </form>
+              {childError && <p className="auth-error" role="alert">{childError}</p>}
             </section>
 
             {/* =========================
