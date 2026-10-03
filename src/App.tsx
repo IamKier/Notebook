@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./index.css";
-import { supabase } from "./lib/supabase";
+import { supabase, supabaseConfigError } from "./lib/supabase";
 
 import Journal from "./pages/Journal";
 import Homework from "./pages/Homework";
@@ -13,9 +13,9 @@ type Page =
   | "subjects";
 
 function App() {
-  const [session, setSession] = useState<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState("");
+  const [session, setSession] = useState<Awaited<ReturnType<NonNullable<typeof supabase>["auth"]["getSession"]>>["data"]["session"]>(null);
+  const [authLoading, setAuthLoading] = useState(Boolean(supabase));
+  const [authError, setAuthError] = useState(supabaseConfigError ?? "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"parent" | "child">("child");
@@ -23,6 +23,9 @@ function App() {
   const [page, setPage] = useState<Page>("home");
 
   useEffect(() => {
+    if (!supabase) {
+      return;
+    }
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthLoading(false);
@@ -37,6 +40,10 @@ function App() {
   const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthError("");
+    if (!supabase) {
+      setAuthError(supabaseConfigError ?? "Supabase is unavailable.");
+      return;
+    }
     const result = isSignUp
       ? await supabase.auth.signUp({ email, password, options: { data: { role } } })
       : await supabase.auth.signInWithPassword({ email, password });
@@ -56,6 +63,7 @@ function App() {
           <p className="auth-kicker">Notebook</p>
           <h1>{isSignUp ? "Create your account" : "Welcome back"}</h1>
           <p className="muted">Sign in as a parent or child.</p>
+          {supabaseConfigError && <p className="auth-error" role="alert">{supabaseConfigError}</p>}
           <form onSubmit={handleAuth}>
             <label htmlFor="auth-email">Email</label>
             <input id="auth-email" className="text-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
@@ -352,7 +360,7 @@ function App() {
 
         <div className="header-actions">
           {page === "home" && <button className="menu-button" aria-label="Menu">☰</button>}
-          <button className="sign-out-button" onClick={() => supabase.auth.signOut()}>Sign out</button>
+          <button className="sign-out-button" onClick={() => supabase?.auth.signOut()}>Sign out</button>
         </div>
       </header>
 
