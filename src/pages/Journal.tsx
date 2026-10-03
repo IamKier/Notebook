@@ -26,7 +26,7 @@ function Journal({ childId }: JournalProps) {
   const [content, setContent] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  const saveJournal = () => {
+  const saveJournal = async () => {
     if (!title.trim() || !content.trim()) {
       alert("Please enter a title and journal content.");
       return;

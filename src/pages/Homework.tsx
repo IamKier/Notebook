@@ -17,10 +17,14 @@ type Subject = {
   name: string;
 };
 
+type HomeworkProps = {
+  childId: string;
+};
+
 const STORAGE_KEY = "notebook-homework";
 const SUBJECTS_STORAGE_KEY = "notebook-subjects";
 
-function Homework() {
+function Homework({ childId }: HomeworkProps) {
   // =========================
   // HOMEWORK
   // =========================
@@ -315,7 +319,7 @@ function Homework() {
   // =========================
 
   return (
-    <main className="content">
+    <main className="content" data-child-id={childId}>
       {/* =========================
           HEADER
           ========================= */}

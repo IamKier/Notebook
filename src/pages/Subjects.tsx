@@ -13,9 +13,13 @@ type Subject = {
   topics: Topic[];
 };
 
+type SubjectsProps = {
+  childId: string;
+};
+
 const STORAGE_KEY = "notebook-subjects";
 
-function Subjects() {
+function Subjects({ childId }: SubjectsProps) {
   const [subjects, setSubjects] = useState<Subject[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
 
@@ -180,7 +184,7 @@ function Subjects() {
 
   if (selectedSubject) {
     return (
-      <main className="content">
+      <main className="content" data-child-id={childId}>
         <button
           className="back-button"
           onClick={() => {
@@ -357,7 +361,7 @@ function Subjects() {
   // =========================
 
   return (
-    <main className="content">
+    <main className="content" data-child-id={childId}>
       <div className="section-title">
         <div>
           <h2>📖 Subjects</h2>
