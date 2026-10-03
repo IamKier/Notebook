@@ -63,7 +63,18 @@ function App() {
   const addChild = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!supabase || !childName.trim()) return;
-    const { error } = await supabase.from("children").insert({ name: childName.trim() });
+    const { data: userData } = await supabase.auth.getUser();
+    const parentId = userData.user?.id;
+
+    if (!parentId) {
+      setChildError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    const { error } = await supabase.from("children").insert({
+      parent_id: parentId,
+      name: childName.trim(),
+    });
     if (error) {
       setChildError(error.message);
       return;
@@ -140,13 +151,13 @@ function App() {
   const renderPage = () => {
     switch (page) {
       case "journal":
-        return <Journal />;
+        return <Journal childId={selectedChildId} />;
 
       case "homework":
-        return <Homework />;
+        return <Homework childId={selectedChildId} />;
 
       case "subjects":
-        return <Subjects />;
+        return <Subjects childId={selectedChildId} />;
 
       case "home":
       default:

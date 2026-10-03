@@ -1,28 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 type JournalEntry = {
   id: string;
   title: string;
   content: string;
-  date: string;
+  created_at: string;
 };
 
-const STORAGE_KEY = "notebook-journals";
+type JournalProps = { childId: string };
 
-function Journal() {
-  const [entries, setEntries] = useState<JournalEntry[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+function Journal({ childId }: JournalProps) {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [error, setError] = useState("");
 
-    if (!saved) {
-      return [];
-    }
-
-    try {
-      return JSON.parse(saved) as JournalEntry[];
-    } catch {
-      return [];
-    }
-  });
+  useEffect(() => {
+    if (!supabase || !childId) return;
+    supabase.from("journals").select("id, title, content, created_at").eq("child_id", childId).order("created_at", { ascending: false }).then(({ data, error: loadError }) => {
+      if (loadError) setError(loadError.message);
+      else setEntries(data ?? []);
+    });
+  }, [childId]);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -38,37 +36,24 @@ function Journal() {
       id: crypto.randomUUID(),
       title: title.trim(),
       content: content.trim(),
-      date: new Date().toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
+      created_at: new Date().toISOString(),
     };
 
-    const updatedEntries = [newEntry, ...entries];
-
-    setEntries(updatedEntries);
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedEntries)
-    );
+    if (!supabase) return;
+    const { data, error: saveError } = await supabase.from("journals").insert({ child_id: childId, title: newEntry.title, content: newEntry.content }).select().single();
+    if (saveError) { setError(saveError.message); return; }
+    setEntries([data, ...entries]);
 
     setTitle("");
     setContent("");
     setShowForm(false);
   };
 
-  const deleteJournal = (id: string) => {
-    const updatedEntries = entries.filter(
-      (entry) => entry.id !== id
-    );
-
-    setEntries(updatedEntries);
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updatedEntries)
-    );
+  const deleteJournal = async (id: string) => {
+    if (!supabase) return;
+    const { error: deleteError } = await supabase.from("journals").delete().eq("id", id);
+    if (deleteError) { setError(deleteError.message); return; }
+    setEntries(entries.filter((entry) => entry.id !== id));
   };
 
   return (
@@ -77,6 +62,7 @@ function Journal() {
         <div>
           <h2>📝 Journal</h2>
           <p className="muted">Write about your day.</p>
+          {error && <p className="auth-error">{error}</p>}
         </div>
 
         <button onClick={() => setShowForm(!showForm)}>
@@ -167,7 +153,7 @@ function Journal() {
                 <div>
                   <h3>{entry.title}</h3>
 
-                  <small>{entry.date}</small>
+                  <small>{new Date(entry.created_at).toLocaleDateString()}</small>
                 </div>
 
                 <button
