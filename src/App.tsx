@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./index.css";
+import { supabase } from "./lib/supabase";
 
 import Journal from "./pages/Journal";
 import Homework from "./pages/Homework";
@@ -12,7 +13,69 @@ type Page =
   | "subjects";
 
 function App() {
+  const [session, setSession] = useState<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"parent" | "child">("child");
+  const [isSignUp, setIsSignUp] = useState(false);
   const [page, setPage] = useState<Page>("home");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAuthError("");
+    const result = isSignUp
+      ? await supabase.auth.signUp({ email, password, options: { data: { role } } })
+      : await supabase.auth.signInWithPassword({ email, password });
+    if (result.error) {
+      setAuthError(result.error.message);
+    } else if (isSignUp && !result.data.session) {
+      setAuthError("Check your email to confirm your account, then sign in.");
+    }
+  };
+
+  if (authLoading) return <main className="auth-page"><p>Connecting to Supabase...</p></main>;
+
+  if (!session) {
+    return (
+      <main className="auth-page">
+        <section className="auth-card">
+          <p className="auth-kicker">Notebook</p>
+          <h1>{isSignUp ? "Create your account" : "Welcome back"}</h1>
+          <p className="muted">Sign in as a parent or child.</p>
+          <form onSubmit={handleAuth}>
+            <label htmlFor="auth-email">Email</label>
+            <input id="auth-email" className="text-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <label htmlFor="auth-password">Password</label>
+            <input id="auth-password" className="text-input" type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required />
+            <label htmlFor="auth-role">Account type</label>
+            <select id="auth-role" className="text-input" value={role} onChange={(event) => setRole(event.target.value as "parent" | "child")}>
+              <option value="child">Child</option>
+              <option value="parent">Parent</option>
+            </select>
+            {authError && <p className="auth-error" role="alert">{authError}</p>}
+            <button className="primary-button" type="submit">{isSignUp ? "Create account" : "Sign in"}</button>
+          </form>
+          <button className="auth-switch" onClick={() => { setIsSignUp(!isSignUp); setAuthError(""); }}>
+            {isSignUp ? "Already have an account? Sign in" : "New here? Create an account"}
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   const today = new Date();
 
@@ -287,14 +350,10 @@ function App() {
           </p>
         </div>
 
-        {page === "home" && (
-          <button
-            className="menu-button"
-            aria-label="Menu"
-          >
-            ☰
-          </button>
-        )}
+        <div className="header-actions">
+          {page === "home" && <button className="menu-button" aria-label="Menu">☰</button>}
+          <button className="sign-out-button" onClick={() => supabase.auth.signOut()}>Sign out</button>
+        </div>
       </header>
 
       {renderPage()}
