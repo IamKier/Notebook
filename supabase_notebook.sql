@@ -62,6 +62,24 @@ alter table public.topics
 alter table public.homework
 	add column if not exists child_id uuid references public.children(id) on delete cascade;
 
+-- Older versions used user_id. The app now scopes records through child_id.
+do $$
+declare
+	legacy_table text;
+begin
+	foreach legacy_table in array array['journals', 'subjects', 'topics', 'homework'] loop
+		if exists (
+			select 1
+			from information_schema.columns
+			where table_schema = 'public'
+			and table_name = legacy_table
+			and column_name = 'user_id'
+		) then
+			execute format('alter table public.%I alter column user_id drop not null', legacy_table);
+		end if;
+	end loop;
+end $$;
+
 create index if not exists children_parent_id_idx on public.children(parent_id);
 create index if not exists journals_child_id_idx on public.journals(child_id);
 create index if not exists subjects_child_id_idx on public.subjects(child_id);
