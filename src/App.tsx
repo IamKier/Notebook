@@ -17,6 +17,8 @@ type Child = {
   name: string;
 };
 
+const ADMIN_EMAIL = "kenjicondez32@gmail.com";
+
 function App() {
   const [session, setSession] = useState<Awaited<ReturnType<NonNullable<typeof supabase>["auth"]["getSession"]>>["data"]["session"]>(null);
   const [authLoading, setAuthLoading] = useState(Boolean(supabase));
@@ -29,6 +31,8 @@ function App() {
   const [selectedChildId, setSelectedChildId] = useState("");
   const [childError, setChildError] = useState("");
   const [page, setPage] = useState<Page>("home");
+
+  const isAdmin = session?.user.email?.toLowerCase() === ADMIN_EMAIL;
 
   const loadChildren = async () => {
     if (!supabase) return;
@@ -56,6 +60,7 @@ function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setAuthLoading(false);
+      if (nextSession) void loadChildren();
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -157,7 +162,7 @@ function App() {
         return <Homework childId={selectedChildId} />;
 
       case "subjects":
-        return <Subjects childId={selectedChildId} />;
+        return <Subjects childId={selectedChildId} isAdmin={isAdmin} />;
 
       case "home":
       default:
@@ -418,7 +423,7 @@ function App() {
           <h1>📓 Notebook</h1>
 
           <p>
-            Your personal school notebook
+            {isAdmin ? "Admin view" : "Your personal school notebook"}
           </p>
         </div>
 

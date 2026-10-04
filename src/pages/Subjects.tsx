@@ -12,28 +12,34 @@ type Subject = {
   id: string;
   name: string;
   description: string;
+  child_id: string;
+  children?: { name: string }[] | null;
   topics: Topic[];
 };
 
 type SubjectsProps = {
   childId: string;
+  isAdmin?: boolean;
 };
 
-function Subjects({ childId }: SubjectsProps) {
+function Subjects({ childId, isAdmin = false }: SubjectsProps) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [error, setError] = useState("");
 
   const loadSubjects = async () => {
-    if (!supabase || !childId) {
+    if (!supabase || (!childId && !isAdmin)) {
       setSubjects([]);
       return;
     }
 
-    const { data, error: loadError } = await supabase
+    let query = supabase
       .from("subjects")
-      .select("id, name, description, topics(id, name, notes)")
-      .eq("child_id", childId)
+      .select("id, name, description, child_id, children(name), topics(id, name, notes)")
       .order("created_at");
+
+    if (!isAdmin) query = query.eq("child_id", childId);
+
+    const { data, error: loadError } = await query;
 
     if (loadError) {
       setError(loadError.message);
@@ -46,16 +52,19 @@ function Subjects({ childId }: SubjectsProps) {
 
   useEffect(() => {
     const load = async () => {
-      if (!supabase || !childId) {
+      if (!supabase || (!childId && !isAdmin)) {
         setSubjects([]);
         return;
       }
 
-      const { data, error: loadError } = await supabase
+      let query = supabase
         .from("subjects")
-        .select("id, name, description, topics(id, name, notes)")
-        .eq("child_id", childId)
+        .select("id, name, description, child_id, children(name), topics(id, name, notes)")
         .order("created_at");
+
+      if (!isAdmin) query = query.eq("child_id", childId);
+
+      const { data, error: loadError } = await query;
 
       if (loadError) {
         setError(loadError.message);
@@ -67,7 +76,7 @@ function Subjects({ childId }: SubjectsProps) {
     };
 
     void load();
-  }, [childId]);
+  }, [childId, isAdmin]);
 
   const [selectedSubjectId, setSelectedSubjectId] =
     useState<string | null>(null);
@@ -99,7 +108,7 @@ function Subjects({ childId }: SubjectsProps) {
       return;
     }
 
-    if (!supabase || !childId) return;
+    if (!supabase || !childId || isAdmin) return;
 
     const { error: saveError } = await supabase.from("subjects").insert({
       child_id: childId,
@@ -222,6 +231,9 @@ function Subjects({ childId }: SubjectsProps) {
         <section className="card subject-detail">
           <div className="subject-detail-header">
             <div>
+              {isAdmin && selectedSubject.children?.[0] && (
+                <p className="muted">{selectedSubject.children[0].name}'s notebook</p>
+              )}
               <span className="subject-icon">
                 📖
               </span>
@@ -235,7 +247,7 @@ function Subjects({ childId }: SubjectsProps) {
               )}
             </div>
 
-            <button
+            {!isAdmin && <button
               className="delete-button"
               onClick={() =>
                 deleteSubject(selectedSubject.id)
@@ -244,7 +256,7 @@ function Subjects({ childId }: SubjectsProps) {
               title="Delete subject"
             >
               🗑️
-            </button>
+            </button>}
           </div>
         </section>
 
@@ -260,13 +272,13 @@ function Subjects({ childId }: SubjectsProps) {
             </p>
           </div>
 
-          <button
+          {!isAdmin && <button
             onClick={() =>
               setShowTopicForm(!showTopicForm)
             }
           >
             {showTopicForm ? "Cancel" : "+ Add"}
-          </button>
+          </button>}
         </div>
 
         {showTopicForm && (
@@ -355,7 +367,7 @@ function Subjects({ childId }: SubjectsProps) {
                     <h3>{topic.name}</h3>
                   </div>
 
-                  <button
+                  {!isAdmin && <button
                     className="delete-button"
                     onClick={() =>
                       deleteTopic(topic.id)
@@ -364,7 +376,7 @@ function Subjects({ childId }: SubjectsProps) {
                     title="Delete topic"
                   >
                     🗑️
-                  </button>
+                  </button>}
                 </div>
 
                 {topic.notes && (
@@ -389,20 +401,20 @@ function Subjects({ childId }: SubjectsProps) {
       {error && <p className="auth-error">{error}</p>}
       <div className="section-title">
         <div>
-          <h2>📖 Subjects</h2>
+          <h2>{isAdmin ? "📖 All User Subjects" : "📖 Subjects"}</h2>
 
           <p className="muted">
-            Organize your school subjects and topics.
+            {isAdmin ? "Review every user's subjects and topics." : "Organize your school subjects and topics."}
           </p>
         </div>
 
-        <button
+        {!isAdmin && <button
           onClick={() =>
             setShowSubjectForm(!showSubjectForm)
           }
         >
           {showSubjectForm ? "Cancel" : "+ Add"}
-        </button>
+        </button>}
       </div>
 
       {showSubjectForm && (
@@ -466,20 +478,20 @@ function Subjects({ childId }: SubjectsProps) {
         <section className="card empty-state">
           <div>📚</div>
 
-          <h3>No subjects yet</h3>
+          <h3>{isAdmin ? "No user subjects yet" : "No subjects yet"}</h3>
 
           <p className="muted">
-            Add your school subjects to get started.
+            {isAdmin ? "Subjects created by users will appear here." : "Add your school subjects to get started."}
           </p>
 
-          <button
+          {!isAdmin && <button
             className="primary-button"
             onClick={() =>
               setShowSubjectForm(true)
             }
           >
             + Add Subject
-          </button>
+          </button>}
         </section>
       ) : (
         <div className="subject-list">
@@ -497,6 +509,9 @@ function Subjects({ childId }: SubjectsProps) {
                 </div>
 
                 <div className="subject-info">
+                  {isAdmin && subject.children?.[0] && (
+                    <span className="muted">{subject.children[0].name}'s notebook</span>
+                  )}
                   <h3>{subject.name}</h3>
 
                   {subject.description && (
@@ -518,7 +533,7 @@ function Subjects({ childId }: SubjectsProps) {
                 </span>
               </div>
 
-              <button
+              {!isAdmin && <button
                 className="delete-subject-button"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -528,7 +543,7 @@ function Subjects({ childId }: SubjectsProps) {
                 title="Delete subject"
               >
                 🗑️
-              </button>
+              </button>}
             </article>
           ))}
         </div>
