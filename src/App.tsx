@@ -89,6 +89,21 @@ function App() {
     await loadChildren();
   };
 
+  const deleteChild = async (child: Child) => {
+    if (!supabase || !isAdmin) return;
+    if (!window.confirm(`Delete ${child.name}'s profile and notebook data?`)) return;
+
+    const { error } = await supabase.from("children").delete().eq("id", child.id);
+    if (error) {
+      setChildError(error.message);
+      return;
+    }
+
+    setChildError("");
+    setChildren((current) => current.filter((currentChild) => currentChild.id !== child.id));
+    if (selectedChildId === child.id) setSelectedChildId("");
+  };
+
   const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthError("");
@@ -187,22 +202,39 @@ function App() {
             <section className="card family-card">
               <div className="section-title">
                 <div>
-                  <h2>Children</h2>
-                  <p className="muted">Choose whose notebook is open.</p>
+                  <h2>{isAdmin ? "All users" : "Children"}</h2>
+                  <p className="muted">
+                    {isAdmin ? "Manage child profiles and their notebooks." : "Choose whose notebook is open."}
+                  </p>
                 </div>
-                {selectedChildId && <strong>{children.find((child) => child.id === selectedChildId)?.name}</strong>}
+                {!isAdmin && selectedChildId && <strong>{children.find((child) => child.id === selectedChildId)?.name}</strong>}
               </div>
-              <div className="child-picker">
-                {children.map((child) => (
-                  <button key={child.id} className={child.id === selectedChildId ? "child-button selected" : "child-button"} onClick={() => setSelectedChildId(child.id)}>
-                    {child.name}
-                  </button>
-                ))}
-              </div>
-              <form className="child-form" onSubmit={addChild}>
-                <input className="text-input" value={childName} onChange={(event) => setChildName(event.target.value)} placeholder="Child's name" required />
-                <button className="primary-button" type="submit">Add child</button>
-              </form>
+              {isAdmin ? (
+                <div className="admin-user-list">
+                  {children.length === 0 ? <p className="muted">No child profiles found.</p> : children.map((child) => (
+                    <div className="admin-user-row" key={child.id}>
+                      <span>{child.name}</span>
+                      <button className="delete-button" onClick={() => deleteChild(child)} aria-label={`Delete ${child.name}`} title={`Delete ${child.name}`}>
+                        🗑️
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className="child-picker">
+                    {children.map((child) => (
+                      <button key={child.id} className={child.id === selectedChildId ? "child-button selected" : "child-button"} onClick={() => setSelectedChildId(child.id)}>
+                        {child.name}
+                      </button>
+                    ))}
+                  </div>
+                  <form className="child-form" onSubmit={addChild}>
+                    <input className="text-input" value={childName} onChange={(event) => setChildName(event.target.value)} placeholder="Child's name" required />
+                    <button className="primary-button" type="submit">Add child</button>
+                  </form>
+                </>
+              )}
               {childError && <p className="auth-error" role="alert">{childError}</p>}
             </section>
 
@@ -259,11 +291,10 @@ function App() {
             <section className="home-section">
               <div className="section-title">
                 <div>
-                  <h2>Today's Journal</h2>
+                  <h2>{isAdmin ? "Journal" : "Today's Journal"}</h2>
 
                   <p className="muted">
-                    Take a moment to write about
-                    your day.
+                    {isAdmin ? "Review journal entries from every child." : "Take a moment to write about your day."}
                   </p>
                 </div>
 
@@ -282,12 +313,10 @@ function App() {
                 </div>
 
                 <div className="home-card-content">
-                  <h3>How was your day?</h3>
+                  <h3>{isAdmin ? "Review all journal entries" : "How was your day?"}</h3>
 
                   <p className="muted">
-                    Write down what happened,
-                    what you learned, or anything
-                    you want to remember.
+                    {isAdmin ? "Open the journal to read each child's updates." : "Write down what happened, what you learned, or anything you want to remember."}
                   </p>
 
                   <button
@@ -296,7 +325,7 @@ function App() {
                       setPage("journal")
                     }
                   >
-                    + Write Today's Journal
+                    {isAdmin ? "View Journal" : "+ Write Today's Journal"}
                   </button>
                 </div>
               </div>
@@ -311,9 +340,7 @@ function App() {
                 <div>
                   <h2>Homework</h2>
 
-                  <p className="muted">
-                    Keep track of your assignments.
-                  </p>
+                  <p className="muted">{isAdmin ? "Review assignments from every child." : "Keep track of your assignments."}</p>
                 </div>
 
                 <button
@@ -330,11 +357,10 @@ function App() {
                   📚
                 </div>
 
-                <h3>No homework shown here yet</h3>
+                <h3>{isAdmin ? "Review all homework" : "No homework shown here yet"}</h3>
 
                 <p className="muted">
-                  Add an assignment to keep track
-                  of your upcoming school work.
+                  {isAdmin ? "Open homework to check progress and submitted proof." : "Add an assignment to keep track of your upcoming school work."}
                 </p>
 
                 <button
@@ -343,7 +369,7 @@ function App() {
                     setPage("homework")
                   }
                 >
-                  + Add Homework
+                  {isAdmin ? "View Homework" : "+ Add Homework"}
                 </button>
               </div>
             </section>
@@ -428,7 +454,6 @@ function App() {
         </div>
 
         <div className="header-actions">
-          {page === "home" && <button className="menu-button" aria-label="Menu">☰</button>}
           <button className="sign-out-button" onClick={() => supabase?.auth.signOut()}>Sign out</button>
         </div>
       </header>
