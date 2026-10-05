@@ -458,49 +458,22 @@ function App() {
         </div>
       </header>
 
-      {renderPage()}
-
-      <nav className="bottom-nav">
-        <button
-          className={
-            page === "home" ? "active" : ""
-          }
-          onClick={() => setPage("home")}
-        >
-          🏠
-          <span>Home</span>
+      <nav className="main-nav" aria-label="Main navigation">
+        <button className={page === "home" ? "active" : ""} onClick={() => setPage("home")} aria-current={page === "home" ? "page" : undefined}>
+          <span aria-hidden="true">🏠</span> Home
         </button>
-
-        <button
-          className={
-            page === "journal" ? "active" : ""
-          }
-          onClick={() => setPage("journal")}
-        >
-          📝
-          <span>Journal</span>
+        <button className={page === "journal" ? "active" : ""} onClick={() => setPage("journal")} aria-current={page === "journal" ? "page" : undefined}>
+          <span aria-hidden="true">📝</span> Journal
         </button>
-
-        <button
-          className={
-            page === "homework" ? "active" : ""
-          }
-          onClick={() => setPage("homework")}
-        >
-          📚
-          <span>Homework</span>
+        <button className={page === "homework" ? "active" : ""} onClick={() => setPage("homework")} aria-current={page === "homework" ? "page" : undefined}>
+          <span aria-hidden="true">📚</span> Homework
         </button>
-
-        <button
-          className={
-            page === "subjects" ? "active" : ""
-          }
-          onClick={() => setPage("subjects")}
-        >
-          📖
-          <span>Subjects</span>
+        <button className={page === "subjects" ? "active" : ""} onClick={() => setPage("subjects")} aria-current={page === "subjects" ? "page" : undefined}>
+          <span aria-hidden="true">📖</span> Subjects
         </button>
       </nav>
+
+      {renderPage()}
     </div>
   );
 }

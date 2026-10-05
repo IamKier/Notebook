@@ -35,7 +35,7 @@ button {
 
 .app {
   min-height: 100vh;
-  padding-bottom: calc(112px + env(safe-area-inset-bottom));
+  padding-bottom: 24px;
 }
 
 .header {
@@ -182,48 +182,41 @@ button {
   border-radius: 12px;
 }
 
-.bottom-nav {
-  position: fixed;
-  bottom: 30px;
-  left: 0;
-  right: 0;
-
+.main-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  justify-content: space-around;
-
-  padding: 10px 5px calc(10px + env(safe-area-inset-bottom));
-  background: white;
-  border-top: 1px solid #e5e7eb;
+  gap: 6px;
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  overflow-x: auto;
+  background: #f5f6f8;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.bottom-nav button {
-  border: none;
+.main-nav button {
+  flex: 1 0 auto;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
   background: transparent;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-
-  font-size: 18px;
+  color: #6b7280;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.bottom-nav span {
-  font-size: 11px;
+.main-nav button:hover,
+.main-nav button.active {
+  border-color: #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 @media (min-width: 700px) {
-  .app {
-    padding-bottom: 80px;
-  }
-
-  .bottom-nav {
-    bottom: 0;
-    max-width: 700px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-radius: 16px 16px 0 0;
-  }
+  .main-nav { border-radius: 0 0 14px 14px; }
 }
 label {
   display: block;
