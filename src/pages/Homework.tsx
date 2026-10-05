@@ -3,6 +3,8 @@ import { supabase } from "../lib/supabase";
 
 type HomeworkItem = {
   id: string;
+  child_id: string;
+  children?: { name: string }[] | null;
   subject: string;
   title: string;
   description: string;
@@ -20,9 +22,10 @@ type Subject = {
 
 type HomeworkProps = {
   childId: string;
+  isAdmin?: boolean;
 };
 
-function Homework({ childId }: HomeworkProps) {
+function Homework({ childId, isAdmin = false }: HomeworkProps) {
   // =========================
   // HOMEWORK
   // =========================
@@ -38,15 +41,23 @@ function Homework({ childId }: HomeworkProps) {
 
   useEffect(() => {
     const loadData = async () => {
-      if (!supabase || !childId) {
+      if (!supabase || (!childId && !isAdmin)) {
         setHomework([]);
         setSubjects([]);
         return;
       }
 
       const [{ data: homeworkData, error: homeworkError }, { data: subjectData, error: subjectError }] = await Promise.all([
-        supabase.from("homework").select("id, subject, title, description, due_date, priority, completed, proof_image, completed_at").eq("child_id", childId).order("due_date"),
-        supabase.from("subjects").select("id, name").eq("child_id", childId).order("created_at"),
+        (() => {
+          let query = supabase.from("homework").select("id, child_id, children(name), subject, title, description, due_date, priority, completed, proof_image, completed_at").order("due_date");
+          if (!isAdmin) query = query.eq("child_id", childId);
+          return query;
+        })(),
+        (() => {
+          let query = supabase.from("subjects").select("id, name").order("created_at");
+          if (!isAdmin) query = query.eq("child_id", childId);
+          return query;
+        })(),
       ]);
 
       if (homeworkError || subjectError) {
@@ -57,6 +68,8 @@ function Homework({ childId }: HomeworkProps) {
       setError("");
       setHomework((homeworkData ?? []).map((item) => ({
         id: item.id,
+        child_id: item.child_id,
+        children: item.children,
         subject: item.subject,
         title: item.title,
         description: item.description,
@@ -70,7 +83,7 @@ function Homework({ childId }: HomeworkProps) {
     };
 
     void loadData();
-  }, [childId]);
+  }, [childId, isAdmin]);
 
   // =========================
   // ADD HOMEWORK FORM
@@ -129,6 +142,7 @@ function Homework({ childId }: HomeworkProps) {
 
     setHomework((current) => [{
       id: data.id,
+      child_id: childId,
       subject: data.subject,
       title: data.title,
       description: data.description,
@@ -336,13 +350,13 @@ function Homework({ childId }: HomeworkProps) {
           </p>
         </div>
 
-        <button
+        {!isAdmin && <button
           onClick={() =>
             setShowForm(!showForm)
           }
         >
           {showForm ? "Cancel" : "+ Add"}
-        </button>
+        </button>}
       </div>
 
       {/* =========================
@@ -483,13 +497,13 @@ function Homework({ childId }: HomeworkProps) {
               Cancel
             </button>
 
-            <button
+            {!isAdmin && <button
               className="primary-button"
               onClick={saveHomework}
               disabled={subjects.length === 0}
             >
               Save Homework
-            </button>
+            </button>}
           </div>
         </section>
       )}
@@ -509,14 +523,14 @@ function Homework({ childId }: HomeworkProps) {
             keeping track.
           </p>
 
-          <button
+          {!isAdmin && <button
             className="primary-button"
             onClick={() =>
               setShowForm(true)
             }
           >
             + Add Homework
-          </button>
+          </button>}
         </section>
       ) : (
         <>
@@ -543,6 +557,7 @@ function Homework({ childId }: HomeworkProps) {
                     >
                       <div className="homework-header">
                         <div>
+                          {isAdmin && item.children?.[0] && <p className="muted">{item.children[0].name}'s notebook</p>}
                           <span className="homework-subject">
                             {item.subject}
                           </span>
@@ -552,7 +567,7 @@ function Homework({ childId }: HomeworkProps) {
                           </h3>
                         </div>
 
-                        <button
+                        {!isAdmin && <button
                           className="delete-button"
                           onClick={() =>
                             deleteHomework(
@@ -563,7 +578,7 @@ function Homework({ childId }: HomeworkProps) {
                           title="Delete homework"
                         >
                           🗑️
-                        </button>
+                        </button>}
                       </div>
 
                       {item.description && (
@@ -591,7 +606,7 @@ function Homework({ childId }: HomeworkProps) {
                           PROOF BUTTON
                           ========================= */}
 
-                      {proofHomeworkId !==
+                      {!isAdmin && proofHomeworkId !==
                         item.id && (
                         <button
                           className="primary-button proof-button"
@@ -609,7 +624,7 @@ function Homework({ childId }: HomeworkProps) {
                           PROOF FORM
                           ========================= */}
 
-                      {proofHomeworkId ===
+                      {!isAdmin && proofHomeworkId ===
                         item.id && (
                         <div className="proof-form">
                           <h4>
@@ -741,6 +756,7 @@ function Homework({ childId }: HomeworkProps) {
                     >
                       <div className="homework-header">
                         <div>
+                          {isAdmin && item.children?.[0] && <p className="muted">{item.children[0].name}'s notebook</p>}
                           <span className="homework-subject">
                             {item.subject}
                           </span>
@@ -750,7 +766,7 @@ function Homework({ childId }: HomeworkProps) {
                           </h3>
                         </div>
 
-                        <button
+                        {!isAdmin && <button
                           className="delete-button"
                           onClick={() =>
                             deleteHomework(
@@ -761,7 +777,7 @@ function Homework({ childId }: HomeworkProps) {
                           title="Delete homework"
                         >
                           🗑️
-                        </button>
+                        </button>}
                       </div>
 
                       {item.description && (

@@ -156,10 +156,10 @@ function App() {
   const renderPage = () => {
     switch (page) {
       case "journal":
-        return <Journal childId={selectedChildId} />;
+        return <Journal childId={selectedChildId} isAdmin={isAdmin} />;
 
       case "homework":
-        return <Homework childId={selectedChildId} />;
+        return <Homework childId={selectedChildId} isAdmin={isAdmin} />;
 
       case "subjects":
         return <Subjects childId={selectedChildId} isAdmin={isAdmin} />;

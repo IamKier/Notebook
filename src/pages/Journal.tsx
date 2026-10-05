@@ -6,21 +6,25 @@ type JournalEntry = {
   title: string;
   content: string;
   created_at: string;
+  child_id: string;
+  children?: { name: string }[] | null;
 };
 
-type JournalProps = { childId: string };
+type JournalProps = { childId: string; isAdmin?: boolean };
 
-function Journal({ childId }: JournalProps) {
+function Journal({ childId, isAdmin = false }: JournalProps) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!supabase || !childId) return;
-    supabase.from("journals").select("id, title, content, created_at").eq("child_id", childId).order("created_at", { ascending: false }).then(({ data, error: loadError }) => {
+    if (!supabase || (!childId && !isAdmin)) return;
+    let query = supabase.from("journals").select("id, title, content, created_at, child_id, children(name)").order("created_at", { ascending: false });
+    if (!isAdmin) query = query.eq("child_id", childId);
+    query.then(({ data, error: loadError }) => {
       if (loadError) setError(loadError.message);
       else setEntries(data ?? []);
     });
-  }, [childId]);
+  }, [childId, isAdmin]);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -37,6 +41,7 @@ function Journal({ childId }: JournalProps) {
       title: title.trim(),
       content: content.trim(),
       created_at: new Date().toISOString(),
+      child_id: childId,
     };
 
     if (!supabase) return;
@@ -65,9 +70,9 @@ function Journal({ childId }: JournalProps) {
           {error && <p className="auth-error">{error}</p>}
         </div>
 
-        <button onClick={() => setShowForm(!showForm)}>
+        {!isAdmin && <button onClick={() => setShowForm(!showForm)}>
           {showForm ? "Cancel" : "+ Add"}
-        </button>
+        </button>}
       </div>
 
       {showForm && (
@@ -135,12 +140,12 @@ function Journal({ childId }: JournalProps) {
             Write about what happened today.
           </p>
 
-          <button
+          {!isAdmin && <button
             className="primary-button"
             onClick={() => setShowForm(true)}
           >
             + Write Your First Entry
-          </button>
+          </button>}
         </section>
       ) : (
         <div className="journal-list">
@@ -151,12 +156,13 @@ function Journal({ childId }: JournalProps) {
             >
               <div className="journal-header">
                 <div>
+                  {isAdmin && entry.children?.[0] && <p className="muted">{entry.children[0].name}'s notebook</p>}
                   <h3>{entry.title}</h3>
 
                   <small>{new Date(entry.created_at).toLocaleDateString()}</small>
                 </div>
 
-                <button
+                {!isAdmin && <button
                   className="delete-button"
                   onClick={() =>
                     deleteJournal(entry.id)
@@ -165,7 +171,7 @@ function Journal({ childId }: JournalProps) {
                   title="Delete journal entry"
                 >
                   🗑️
-                </button>
+                </button>}
               </div>
 
               <p className="journal-content">
